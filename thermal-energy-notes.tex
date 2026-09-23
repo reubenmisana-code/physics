@@ -27,6 +27,40 @@
 \usepackage{enumitem}
 \usepackage{graphicx}
 
+% ---------- Keep section headings glued to the block that follows ----------
+% Inside multicols a \section can land at a column/page boundary and get
+% detached from the (unbreakable) definition box that follows it, leaving a
+% blank column with the heading orphaned at its top and the body pushed to
+% the next page (seen on page 1 with the "Heat Capacity" heading).
+%
+% Two coordinated measures fix this generally for every section:
+%   1. needspace reserves vertical room *before* the heading, so a heading is
+%      never emitted as the last line at the bottom of a column (see the
+%      \section redefinition below).
+%   2. LaTeX sets \@nobreaktrue after a heading, but that guard is only
+%      honoured before a following *paragraph*; a tcolorbox's leading skip
+%      ignores it. The \theme@boxbefore "before" code on the definition/nb/
+%      example boxes restores the \nobreak for the box case, so a heading
+%      cannot be split from a box that follows it (see the box definitions).
+\usepackage{needspace}
+\usepackage{etoolbox}
+\makeatletter
+% (1) Reserve space *before* every heading so a heading is never left dangling
+%     as the last line at the bottom of a column.
+\let\theme@oldsection\section
+\renewcommand{\section}{%
+  \needspace{8\baselineskip}%
+  \theme@oldsection}
+% (2) Standard LaTeX already sets \@nobreaktrue after a heading and, via
+%     \everypar, forbids a break before the first *paragraph* that follows.
+%     But when a tcolorbox (definition/nb/example) follows a heading directly,
+%     its leading vertical skip is a raw \vskip that ignores \@nobreak, so
+%     multicols may end the column right there and orphan the heading. The box
+%     "before" code below (\if@nobreak\nobreak\fi) restores that guard for the
+%     box case, so a heading stays glued to a following box just as it does to
+%     following prose. This is general to every section.
+\makeatother
+
 % ---------- TikZ + libraries needed for later diagram work ----------
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,decorations.pathmorphing}
@@ -44,6 +78,13 @@
 % ---------------------------------------------------------------------
 %  Reusable tcolorbox environments
 % ---------------------------------------------------------------------
+% "before" code keeps a box from breaking away from a preceding heading:
+% \@afterheading sets \@nobreaktrue, so this inserts an infinite penalty
+% before the box's leading skip in exactly that case (and does nothing
+% otherwise, letting boxes break to the next column normally).
+\makeatletter
+\newcommand{\theme@boxbefore}{\par\if@nobreak\nobreak\fi\addvspace{5pt}\noindent}
+
 % Definition box: coloured title bar reading "Definition"
 \newtcolorbox{definition}[1][]{
   breakable,
@@ -56,6 +97,7 @@
   boxrule=0.6pt,
   arc=2pt,
   left=4pt,right=4pt,top=3pt,bottom=3pt,
+  before=\theme@boxbefore,
   #1
 }
 
@@ -71,6 +113,7 @@
   boxrule=0.6pt,
   arc=2pt,
   left=4pt,right=4pt,top=3pt,bottom=3pt,
+  before=\theme@boxbefore,
   #1
 }
 
@@ -86,7 +129,22 @@
   boxrule=0.6pt,
   arc=2pt,
   left=4pt,right=4pt,top=3pt,bottom=3pt,
+  before=\theme@boxbefore,
 }
+\makeatother
+
+% ---------------------------------------------------------------------
+%  Physics-solution layout helpers
+%  Every worked example and numeric solution is laid out as
+%  Given / Required / Formula / Working / Answer so the reader always
+%  sees the data, the defined symbols, the governing equation and the
+%  step-by-step algebra before the boxed result.
+% ---------------------------------------------------------------------
+\newcommand{\Given}{\par\vspace{2pt}\textbf{Given:}\ }
+\newcommand{\Required}{\par\vspace{2pt}\textbf{Required:}\ }
+\newcommand{\Formula}{\par\vspace{2pt}\textbf{Formula:}\ }
+\newcommand{\Working}{\par\vspace{2pt}\textbf{Working:}}
+\newcommand{\Answer}[1]{\par\vspace{2pt}\textbf{Answer:}\ \fbox{#1}}
 
 % ---------------------------------------------------------------------
 %  Document
@@ -143,6 +201,22 @@ temperature has the same size in \si{\kelvin} and \si{\degreeCelsius},
 so $\Delta\theta$ may be quoted in either unit.
 \end{nb}
 
+\begin{nb}
+\textbf{Symbols used in the worked solutions.}
+$Q$ = heat energy (\si{\joule});
+$m$ = mass (\si{\kilogram});
+$c$ = specific heat capacity (\si{\joule\per\kilogram\per\kelvin});
+$C$ = heat capacity (\si{\joule\per\kelvin});
+$\Delta\theta$ = temperature change (\si{\kelvin});
+$\theta$ = temperature (\si{\degreeCelsius});
+$L_f$ = specific latent heat of fusion,
+$L_v$ = specific latent heat of vapourisation (both \si{\joule\per\kilogram});
+$P$ = power (\si{\watt}); $t$ = time (\si{\second}).
+Each solution below sets out the \textbf{Given} data, the
+\textbf{Required} unknown, the \textbf{Formula}, the step-by-step
+\textbf{Working} and the final \textbf{Answer}.
+\end{nb}
+
 % =====================================================================
 \section{Heat and What Determines It}
 % =====================================================================
@@ -188,11 +262,19 @@ A heater delivers \SI{9600}{\joule} of energy to an iron block and its
 temperature rises from \SI{20}{\degreeCelsius} to
 \SI{60}{\degreeCelsius}. Find the heat capacity of the block.
 \tcblower
+\Given heat supplied $Q = \SI{9600}{\joule}$;
+initial temperature $\theta_1 = \SI{20}{\degreeCelsius}$;
+final temperature $\theta_2 = \SI{60}{\degreeCelsius}$.
+\Required the heat capacity $C$ (\si{\joule\per\kelvin}).
+\Formula $C = \dfrac{Q}{\Delta\theta}$, where
+$\Delta\theta = \theta_2 - \theta_1$.
+\Working
 \begin{align*}
   \Delta\theta &= 60 - 20 = \SI{40}{\kelvin} \\
   C &= \frac{Q}{\Delta\theta} = \frac{\SI{9600}{\joule}}{\SI{40}{\kelvin}}
        = \SI{240}{\joule\per\kelvin}.
 \end{align*}
+\Answer{$C = \SI{240}{\joule\per\kelvin}$}
 \end{example}
 
 % =====================================================================
@@ -243,12 +325,19 @@ How much heat is needed to raise the temperature of \SI{2.5}{\kilogram}
 of water from \SI{20}{\degreeCelsius} to \SI{80}{\degreeCelsius}?
 Take $c_{\text{water}} = \SI{4200}{\joule\per\kilogram\per\kelvin}$.
 \tcblower
+\Given mass $m = \SI{2.5}{\kilogram}$;
+specific heat capacity $c = \SI{4200}{\joule\per\kilogram\per\kelvin}$;
+$\theta_1 = \SI{20}{\degreeCelsius}$, $\theta_2 = \SI{80}{\degreeCelsius}$.
+\Required the heat supplied $Q$ (\si{\joule}).
+\Formula $Q = m\,c\,\Delta\theta$, with $\Delta\theta = \theta_2 - \theta_1$.
+\Working
 \begin{align*}
   \Delta\theta &= 80 - 20 = \SI{60}{\kelvin} \\
   Q &= m\,c\,\Delta\theta \\
     &= 2.5 \times 4200 \times 60 \\
     &= \SI{630000}{\joule} = \SI{630}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{630}{\kilo\joule}$}
 \end{example}
 
 \begin{example}[: heating a metal block]
@@ -257,11 +346,18 @@ An aluminium block of mass \SI{0.8}{\kilogram} is heated from
 supplied. Take $c_{\text{Al}} =
 \SI{900}{\joule\per\kilogram\per\kelvin}$.
 \tcblower
+\Given mass $m = \SI{0.8}{\kilogram}$;
+$c = \SI{900}{\joule\per\kilogram\per\kelvin}$;
+$\theta_1 = \SI{25}{\degreeCelsius}$, $\theta_2 = \SI{175}{\degreeCelsius}$.
+\Required the heat supplied $Q$ (\si{\joule}).
+\Formula $Q = m\,c\,\Delta\theta$, with $\Delta\theta = \theta_2 - \theta_1$.
+\Working
 \begin{align*}
   \Delta\theta &= 175 - 25 = \SI{150}{\kelvin} \\
   Q &= m\,c\,\Delta\theta = 0.8 \times 900 \times 150 \\
     &= \SI{108000}{\joule} = \SI{108}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{108}{\kilo\joule}$}
 \end{example}
 
 \begin{example}[: finding specific heat capacity]
@@ -269,6 +365,13 @@ A \SI{0.5}{\kilogram} copper cylinder is given \SI{7800}{\joule} of
 heat and its temperature rises by \SI{40}{\kelvin}. Find its specific
 heat capacity.
 \tcblower
+\Given mass $m = \SI{0.5}{\kilogram}$;
+heat supplied $Q = \SI{7800}{\joule}$;
+temperature change $\Delta\theta = \SI{40}{\kelvin}$.
+\Required the specific heat capacity $c$
+(\si{\joule\per\kilogram\per\kelvin}).
+\Formula $Q = m\,c\,\Delta\theta \Rightarrow c = \dfrac{Q}{m\,\Delta\theta}$.
+\Working
 \begin{align*}
   c &= \frac{Q}{m\,\Delta\theta}
      = \frac{7800}{0.5 \times 40} \\
@@ -276,6 +379,7 @@ heat capacity.
      = \SI{390}{\joule\per\kilogram\per\kelvin}.
 \end{align*}
 This matches the value for copper in the table above.
+\Answer{$c = \SI{390}{\joule\per\kilogram\per\kelvin}$}
 \end{example}
 
 % =====================================================================
@@ -286,8 +390,7 @@ quantities of heat. When a hot body is placed with a cold one inside
 it, they exchange heat until they settle at a common
 (\emph{equilibrium}) temperature.
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\small}]
   % outer jacket
   \draw[thick] (0,0) rectangle (4,3.4);
@@ -317,8 +420,9 @@ it, they exchange heat until they settle at a common
   \node[above] at (2,2.85) {\scriptsize lid};
 \end{tikzpicture}\\[-2pt]
 {\scriptsize\textbf{Fig.\ 1} A lagged calorimeter used in
-mixtures experiments.}
-\end{figure*}
+mixtures experiments. \textit{(See the corresponding figure in your
+textbook's chapter on thermal energy.)}}
+\end{center}
 
 \begin{definition}
 \textbf{The principle of mixtures} (conservation of energy): if no heat
@@ -341,7 +445,14 @@ otherwise.
 \SI{0.5}{\kilogram} of water at \SI{20}{\degreeCelsius}. Find the final
 temperature $\theta$.
 \tcblower
-Heat lost by hot water $=$ heat gained by cold water:
+\Given hot water $m_1 = \SI{0.3}{\kilogram}$ at
+$\theta_1 = \SI{80}{\degreeCelsius}$;
+cold water $m_2 = \SI{0.5}{\kilogram}$ at
+$\theta_2 = \SI{20}{\degreeCelsius}$; same liquid, so $c$ is common.
+\Required the equilibrium temperature $\theta$ (\si{\degreeCelsius}).
+\Formula principle of mixtures: $Q_{\text{lost}} = Q_{\text{gained}}$,
+i.e. $m_1 c(\theta_1 - \theta) = m_2 c(\theta - \theta_2)$ ($c$ cancels).
+\Working
 \begin{align*}
   m_1 c (80 - \theta) &= m_2 c (\theta - 20) \\
   0.3(80 - \theta) &= 0.5(\theta - 20) \\
@@ -349,6 +460,7 @@ Heat lost by hot water $=$ heat gained by cold water:
   34 &= 0.8\theta \\
   \theta &= \SI{42.5}{\degreeCelsius}.
 \end{align*}
+\Answer{$\theta = \SI{42.5}{\degreeCelsius}$}
 \end{example}
 
 \begin{example}[: specific heat capacity of a metal]
@@ -358,13 +470,21 @@ a calorimeter of negligible heat capacity. The mixture settles at
 \SI{30}{\degreeCelsius}. Find the specific heat capacity $c_m$ of the
 metal.
 \tcblower
+\Given metal $m_m = \SI{0.4}{\kilogram}$ at
+\SI{100}{\degreeCelsius}; water $m_w = \SI{0.2}{\kilogram}$,
+$c_w = \SI{4200}{\joule\per\kilogram\per\kelvin}$ at
+\SI{18}{\degreeCelsius}; equilibrium $\theta = \SI{30}{\degreeCelsius}$.
+\Required the specific heat capacity $c_m$ of the metal.
+\Formula $Q_{\text{lost by metal}} = Q_{\text{gained by water}}$, i.e.
+$m_m c_m(100 - \theta) = m_w c_w(\theta - 18)$.
+\Working
 \begin{align*}
-  Q_{\text{lost by metal}} &= Q_{\text{gained by water}} \\
   m_m c_m (100 - 30) &= m_w c_w (30 - 18) \\
   0.4 \, c_m \times 70 &= 0.2 \times 4200 \times 12 \\
   28\,c_m &= 10080 \\
   c_m &= \SI{360}{\joule\per\kilogram\per\kelvin}.
 \end{align*}
+\Answer{$c_m = \SI{360}{\joule\per\kilogram\per\kelvin}$}
 \end{example}
 
 \begin{example}[: finding an unknown mass]
@@ -372,12 +492,20 @@ An unknown mass $m$ of water at \SI{15}{\degreeCelsius} is added to
 \SI{0.6}{\kilogram} of water at \SI{75}{\degreeCelsius}. The mixture
 reaches \SI{55}{\degreeCelsius}. Find $m$ (ignore the container).
 \tcblower
+\Given cold water mass $m$ (unknown) at \SI{15}{\degreeCelsius};
+hot water $m_2 = \SI{0.6}{\kilogram}$ at \SI{75}{\degreeCelsius};
+equilibrium $\theta = \SI{55}{\degreeCelsius}$; common $c$ (water).
+\Required the unknown mass $m$ (\si{\kilogram}).
+\Formula $Q_{\text{gained by cold}} = Q_{\text{lost by hot}}$, i.e.
+$m\,c(\theta - 15) = m_2 c(75 - \theta)$ ($c$ cancels).
+\Working
 \begin{align*}
   m\,c(55 - 15) &= 0.6\,c(75 - 55) \\
   40\,m &= 0.6 \times 20 \\
   40\,m &= 12 \\
   m &= \SI{0.3}{\kilogram}.
 \end{align*}
+\Answer{$m = \SI{0.3}{\kilogram}$}
 \end{example}
 
 \begin{example}[: specific heat capacity of a liquid]
@@ -385,11 +513,19 @@ A heater rated \SI{50}{\watt} warms \SI{0.25}{\kilogram} of an oil by
 \SI{16}{\kelvin} in \SI{2}{\minute}. Assuming no losses, find the
 specific heat capacity of the oil.
 \tcblower
+\Given power $P = \SI{50}{\watt}$; mass $m = \SI{0.25}{\kilogram}$;
+temperature change $\Delta\theta = \SI{16}{\kelvin}$;
+time $t = \SI{2}{\minute} = \SI{120}{\second}$.
+\Required the specific heat capacity $c$ of the oil.
+\Formula heat delivered $Q = P\,t$, then
+$c = \dfrac{Q}{m\,\Delta\theta}$.
+\Working
 \begin{align*}
   Q &= P\,t = 50 \times (2 \times 60) = \SI{6000}{\joule} \\
   c &= \frac{Q}{m\,\Delta\theta} = \frac{6000}{0.25 \times 16} \\
     &= \frac{6000}{4} = \SI{1500}{\joule\per\kilogram\per\kelvin}.
 \end{align*}
+\Answer{$c = \SI{1500}{\joule\per\kilogram\per\kelvin}$}
 \end{example}
 
 % =====================================================================
@@ -400,8 +536,7 @@ removing heat can change one state into another. The kinetic theory
 explains this by how strongly the particles are held together and how
 fast they move.
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   % solid
   \draw (0,0) rectangle (2.2,1.6);
@@ -431,8 +566,8 @@ fast they move.
   \draw[-{Latex}] (6.65,0.4) -- (5.75,0.4) node[midway,below]{condense};
 \end{tikzpicture}\\[8pt]
 {\scriptsize\textbf{Fig.\ 2} The three states of water and the changes
-between them.}
-\end{figure*}
+between them. \textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 \begin{definition}
 \textbf{Melting} is the change from solid to liquid at a fixed
@@ -447,8 +582,7 @@ heat is still being supplied. The energy goes into breaking the bonds
 between particles, not into raising their speed.
 \end{nb}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   \draw[-{Latex}] (0,0) -- (6.6,0) node[right]{time};
   \draw[-{Latex}] (0,0) -- (0,3.4) node[above]{temperature};
@@ -463,8 +597,9 @@ between particles, not into raising their speed.
   \node at (5.3,1.4) {solid};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 3} Cooling curve: a liquid cooling to a solid
-shows a flat plateau at the freezing point $\theta_f$.}
-\end{figure*}
+shows a flat plateau at the freezing point $\theta_f$.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 \begin{example}[: cooling through the freezing point]
 A pure substance of mass \SI{0.2}{\kilogram} is liquid at
@@ -475,12 +610,21 @@ of fusion is \SI{80000}{\joule\per\kilogram}. Find the total heat
 removed to cool the liquid to \SI{60}{\degreeCelsius} and then freeze it
 completely.
 \tcblower
+\Given mass $m = \SI{0.2}{\kilogram}$; liquid at
+\SI{90}{\degreeCelsius}; freezing point \SI{60}{\degreeCelsius};
+$c = \SI{2500}{\joule\per\kilogram\per\kelvin}$;
+$L_f = \SI{80000}{\joule\per\kilogram}$.
+\Required the total heat removed $Q_{\text{total}}$ (\si{\joule}).
+\Formula cool the liquid with $Q_1 = m c\,\Delta\theta$, then freeze it
+with $Q_2 = m L_f$; total $Q_{\text{total}} = Q_1 + Q_2$.
+\Working
 \begin{align*}
   Q_1 &= m c \,\Delta\theta = 0.2 \times 2500 \times (90 - 60) \\
       &= \SI{15000}{\joule} \\
   Q_2 &= m L_f = 0.2 \times 80000 = \SI{16000}{\joule} \\
   Q_{\text{total}} &= Q_1 + Q_2 = \SI{31000}{\joule} = \SI{31}{\kilo\joule}.
 \end{align*}
+\Answer{$Q_{\text{total}} = \SI{31}{\kilo\joule}$}
 \end{example}
 
 % =====================================================================
@@ -502,8 +646,7 @@ weights slowly passes through a block of ice while the block stays in
 one piece behind it.
 \end{definition}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   % ice block
   \draw[thick,fill=cyan!12] (0,0) rectangle (4,2);
@@ -521,8 +664,9 @@ one piece behind it.
   \node at (2,-1.3) {\itshape wire melts ice below it; water refreezes above};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 4} Regelation: a loaded wire cuts through
-ice which re-freezes behind it.}
-\end{figure*}
+ice which re-freezes behind it.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 % =====================================================================
 \section{Boiling and Evaporation}
@@ -561,8 +705,7 @@ The boiling point is affected by:
         so water boils below \SI{100}{\degreeCelsius}.
 \end{itemize}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   % round-bottomed flask
   \draw[thick] (1.6,0.2) .. controls (0.2,0.2) and (0.2,2.0) .. (1.4,2.0);
@@ -591,11 +734,10 @@ The boiling point is affected by:
   \node at (2.0,-0.9) {heat};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 5} Boiling apparatus for observing the
-boiling point.}
-\end{figure*}
+boiling point. \textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   \draw[-{Latex}] (0,0) -- (6.6,0) node[right]{time};
   \draw[-{Latex}] (0,0) -- (0,3.4) node[above]{temperature};
@@ -606,8 +748,9 @@ boiling point.}
   \node[rotate=34] at (1.6,1.9) {heating water};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 6} Heating water: the temperature rises then
-stays flat while the water boils.}
-\end{figure*}
+stays flat while the water boils.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 % =====================================================================
 \section{Latent Heat}
@@ -634,8 +777,7 @@ energy than fusion, which is why steam at \SI{100}{\degreeCelsius}
 causes worse scalds than the same mass of boiling water.
 \end{nb}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   \draw[-{Latex}] (0,0) -- (7.0,0) node[right]{heat supplied};
   \draw[-{Latex}] (0,0) -- (0,3.4) node[above]{temperature};
@@ -654,18 +796,25 @@ causes worse scalds than the same mass of boiling water.
   \node at (6.0,2.55) {gas};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 7} Temperature versus heat supplied: two flat
-plateaus mark fusion and vapourisation.}
-\end{figure*}
+plateaus mark fusion and vapourisation.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 \begin{example}[: melting ice]
 Find the heat needed to melt \SI{0.4}{\kilogram} of ice already at
 \SI{0}{\degreeCelsius}. Take
 $L_f = \SI{3.34e5}{\joule\per\kilogram}$.
 \tcblower
+\Given mass $m = \SI{0.4}{\kilogram}$ of ice at
+\SI{0}{\degreeCelsius}; $L_f = \SI{3.34e5}{\joule\per\kilogram}$.
+\Required the heat $Q$ needed to melt it (\si{\joule}).
+\Formula at the melting point (no temperature change) $Q = m L_f$.
+\Working
 \begin{align*}
   Q &= m L_f = 0.4 \times 3.34\times10^{5} \\
     &= \SI{133600}{\joule} \approx \SI{134}{\kilo\joule}.
 \end{align*}
+\Answer{$Q \approx \SI{134}{\kilo\joule}$}
 \end{example}
 
 \begin{example}[: ice to steam in stages]
@@ -676,6 +825,18 @@ $c_{\text{ice}}=2100$, $c_{\text{water}}=4200$, $c_{\text{steam}}=2010$
 $L_f=\SI{3.34e5}{\joule\per\kilogram}$,
 $L_v=\SI{2.26e6}{\joule\per\kilogram}$.
 \tcblower
+\Given mass $m = \SI{0.1}{\kilogram}$;
+$c_{\text{ice}}=2100$, $c_{\text{water}}=4200$, $c_{\text{steam}}=2010$
+(\si{\joule\per\kilogram\per\kelvin});
+$L_f=\SI{3.34e5}{\joule\per\kilogram}$,
+$L_v=\SI{2.26e6}{\joule\per\kilogram}$; ice at
+\SI{-10}{\degreeCelsius} to steam at \SI{120}{\degreeCelsius}.
+\Required the total heat $Q_{\text{tot}}$ (\si{\joule}).
+\Formula five stages: warm ice ($Q_1=mc_{\text{ice}}\Delta\theta$),
+melt ($Q_2=mL_f$), warm water ($Q_3=mc_{\text{w}}\Delta\theta$),
+boil ($Q_4=mL_v$), warm steam ($Q_5=mc_{\text{st}}\Delta\theta$);
+$Q_{\text{tot}}=Q_1+Q_2+Q_3+Q_4+Q_5$.
+\Working
 \begin{align*}
   Q_1 &= m c_{\text{ice}}\,\Delta\theta = 0.1\times2100\times10 = \SI{2100}{\joule}\\
   Q_2 &= m L_f = 0.1\times3.34\times10^{5} = \SI{33400}{\joule}\\
@@ -685,10 +846,10 @@ $L_v=\SI{2.26e6}{\joule\per\kilogram}$.
   Q_{\text{tot}} &= Q_1+Q_2+Q_3+Q_4+Q_5\\
       &= \SI{307520}{\joule} \approx \SI{308}{\kilo\joule}.
 \end{align*}
+\Answer{$Q_{\text{tot}} \approx \SI{308}{\kilo\joule}$}
 \end{example}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   \draw[-{Latex}] (0,0) -- (7.0,0) node[right]{heat supplied};
   \draw[-{Latex}] (0,0) -- (0,3.4) node[above]{temperature (\si{\celsius})};
@@ -707,8 +868,9 @@ $L_v=\SI{2.26e6}{\joule\per\kilogram}$.
   \node at (5.9,2.45) {steam};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 8} Staged heating of ice at
-\SI{-10}{\celsius} to steam at \SI{120}{\celsius}.}
-\end{figure*}
+\SI{-10}{\celsius} to steam at \SI{120}{\celsius}.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 \begin{example}[: steam condensing to warm water]
 Steam at \SI{100}{\degreeCelsius} is passed into \SI{0.5}{\kilogram} of
@@ -718,7 +880,15 @@ water at \SI{20}{\degreeCelsius} until the water reaches
 of steam condensed. Use
 $L_v=\SI{2.26e6}{\joule\per\kilogram}$, $c_w=4200$.
 \tcblower
-Heat released by steam $=$ heat gained by cold water:
+\Given cold water $m_w = \SI{0.5}{\kilogram}$ warmed from
+\SI{20}{} to \SI{40}{\degreeCelsius}; steam mass $m_s$ (unknown)
+condensing at \SI{100}{\degreeCelsius} then cooling to
+\SI{40}{\degreeCelsius}; $L_v=\SI{2.26e6}{\joule\per\kilogram}$,
+$c_w=\SI{4200}{\joule\per\kilogram\per\kelvin}$.
+\Required the mass of steam condensed $m_s$ (\si{\kilogram}).
+\Formula heat released by steam $=$ heat gained by cold water:
+$m_s L_v + m_s c_w(100-40) = m_w c_w(40-20)$.
+\Working
 \begin{align*}
   m_s L_v + m_s c_w(100-40) &= m_w c_w(40-20) \\
   m_s(2.26\times10^{6} + 4200\times60) &= 0.5\times4200\times20 \\
@@ -726,6 +896,7 @@ Heat released by steam $=$ heat gained by cold water:
   m_s \times 2.512\times10^{6} &= 42000 \\
   m_s &\approx \SI{0.0167}{\kilogram} = \SI{16.7}{\gram}.
 \end{align*}
+\Answer{$m_s \approx \SI{16.7}{\gram}$}
 \end{example}
 
 \begin{example}[: energy and time to melt lead]
@@ -734,10 +905,16 @@ at its melting point. Take $L_f(\text{lead}) =
 \SI{25000}{\joule\per\kilogram}$. Find the energy required and the time
 taken, assuming no heat is lost.
 \tcblower
+\Given power $P = \SI{300}{\watt}$; mass $m = \SI{0.5}{\kilogram}$ at
+the melting point; $L_f = \SI{25000}{\joule\per\kilogram}$.
+\Required the energy $Q$ (\si{\joule}) and the time $t$ (\si{\second}).
+\Formula $Q = m L_f$, then $t = \dfrac{Q}{P}$.
+\Working
 \begin{align*}
   Q &= m L_f = 0.5 \times 25000 = \SI{12500}{\joule} \\
   t &= \frac{Q}{P} = \frac{12500}{300} \approx \SI{41.7}{\second}.
 \end{align*}
+\Answer{$Q = \SI{12.5}{\kilo\joule}$, $t \approx \SI{41.7}{\second}$}
 \end{example}
 
 % =====================================================================
@@ -756,8 +933,7 @@ food, and then condenses in the coils behind the fridge, giving that
 heat out to the room.
 \end{definition}
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   % cabinet double wall
   \draw[thick] (0,0) rectangle (4.2,4.2);
@@ -784,8 +960,9 @@ heat out to the room.
   \draw[thick] (5.0,1.4) -- (5.0,1.1) -- (4.4,1.1);
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 9} Domestic refrigerator: evaporator coil in
-the freezer, capillary tube, compressor pump and condenser fins.}
-\end{figure*}
+the freezer, capillary tube, compressor pump and condenser fins.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 \begin{nb}
 The pump keeps the refrigerant circulating. The refrigerant
@@ -802,8 +979,7 @@ Regions AB and CD are sloping (temperature rising) while BC and DE are
 flat (change of state). Reading such a graph: sloping parts use
 $Q=mc\Delta\theta$; flat plateaus use $Q=mL$.
 
-\begin{figure*}[t]
-\centering
+\begin{center}
 \begin{tikzpicture}[scale=1.0,every node/.style={font=\scriptsize}]
   \draw[-{Latex}] (0,0) -- (7.0,0) node[right]{heat supplied};
   \draw[-{Latex}] (0,0) -- (0,3.4) node[above]{temperature};
@@ -822,8 +998,9 @@ $Q=mc\Delta\theta$; flat plateaus use $Q=mL$.
   \node at (3.3,2.1){liquid}; \node at (4.8,2.85){boiling};
 \end{tikzpicture}\\[2pt]
 {\scriptsize\textbf{Fig.\ 10} Generic heating graph for a solid taken
-through melting and boiling.}
-\end{figure*}
+through melting and boiling.
+\textit{(See the corresponding figure in your textbook.)}}
+\end{center}
 
 % =====================================================================
 \begin{tcolorbox}[breakable,enhanced,colback=defbg,colframe=defblue,
@@ -1051,21 +1228,40 @@ water and (ii) \emph{raises} its boiling point.
 \subsection*{Part B --- $Q=mc\Delta\theta$}
 
 \textbf{Q10.}
+\Given $m=\SI{3}{\kilogram}$ water,
+$c=\SI{4200}{\joule\per\kilogram\per\kelvin}$,
+$\theta_1=\SI{15}{\degreeCelsius}$, $\theta_2=\SI{65}{\degreeCelsius}$.
+\Required the heat supplied $Q$.
+\Formula $Q=mc\,\Delta\theta$, $\Delta\theta=\theta_2-\theta_1$.
+\Working
 \begin{align*}
   \Delta\theta &= 65-15 = \SI{50}{\kelvin}\\
   Q &= mc\,\Delta\theta = 3 \times 4200 \times 50\\
     &= \SI{630000}{\joule} = \SI{630}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{630}{\kilo\joule}$}
 
 \textbf{Q11.}
+\Given $m=\SI{1.5}{\kilogram}$ aluminium,
+$c_{\text{Al}}=\SI{900}{\joule\per\kilogram\per\kelvin}$,
+$\theta_1=\SI{20}{\degreeCelsius}$, $\theta_2=\SI{120}{\degreeCelsius}$.
+\Required the heat absorbed $Q$.
+\Formula $Q=mc\,\Delta\theta$, $\Delta\theta=\theta_2-\theta_1$.
+\Working
 \begin{align*}
   \Delta\theta &= 120-20 = \SI{100}{\kelvin}\\
   Q &= mc\,\Delta\theta = 1.5 \times 900 \times 100\\
     &= \SI{135000}{\joule} = \SI{135}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{135}{\kilo\joule}$}
 
-\textbf{Q12.} Using $\Delta\theta = Q/(mc)$ with $Q=\SI{12000}{\joule}$
-and $m=\SI{0.5}{\kilogram}$:
+\textbf{Q12.}
+\Given $Q=\SI{12000}{\joule}$ supplied to each; $m=\SI{0.5}{\kilogram}$;
+$c_{\text{water}}=4200$, $c_{\text{iron}}=480$
+(\si{\joule\per\kilogram\per\kelvin}).
+\Required the temperature rise $\Delta\theta$ of each.
+\Formula $Q=mc\,\Delta\theta \Rightarrow \Delta\theta = \dfrac{Q}{mc}$.
+\Working
 \begin{align*}
   \Delta\theta_{\text{water}} &= \frac{12000}{0.5 \times 4200}
       = \frac{12000}{2100} \approx \SI{5.7}{\kelvin}\\
@@ -1075,11 +1271,19 @@ and $m=\SI{0.5}{\kilogram}$:
 The iron warms about $50/5.7 \approx 8.75$ times as much, because its
 specific heat capacity is much smaller: the same heat causes a far
 bigger temperature rise in iron than in water.
+\Answer{$\Delta\theta_{\text{water}} \approx \SI{5.7}{\kelvin}$,
+$\Delta\theta_{\text{iron}} = \SI{50}{\kelvin}$}
 
 \subsection*{Part C --- Method of mixtures}
 
-\textbf{Q13.} Heat lost by hot water $=$ heat gained by cold water
-(the $c$ cancels):
+\textbf{Q13.}
+\Given hot water $m_1=\SI{0.4}{\kilogram}$ at \SI{70}{\degreeCelsius};
+cold water $m_2=\SI{0.6}{\kilogram}$ at \SI{20}{\degreeCelsius};
+common $c$ (water).
+\Required the final temperature $\theta$.
+\Formula $Q_{\text{lost}}=Q_{\text{gained}}$:
+$m_1 c(70-\theta)=m_2 c(\theta-20)$ ($c$ cancels).
+\Working
 \begin{align*}
   0.4(70-\theta) &= 0.6(\theta-20)\\
   28 - 0.4\theta &= 0.6\theta - 12\\
@@ -1087,8 +1291,17 @@ bigger temperature rise in iron than in water.
   \theta &= \SI{40}{\degreeCelsius}.
 \end{align*}
 This lies between \SI{20}{} and \SI{70}{\degreeCelsius}, as expected.
+\Answer{$\theta = \SI{40}{\degreeCelsius}$}
 
-\textbf{Q14.} Heat lost by copper $=$ heat gained by water:
+\textbf{Q14.}
+\Given copper $m_c=\SI{0.5}{\kilogram}$, $c_c=\SI{390}{\joule\per\kilogram\per\kelvin}$
+at \SI{95}{\degreeCelsius}; water $m_w=\SI{0.3}{\kilogram}$,
+$c_w=\SI{4200}{\joule\per\kilogram\per\kelvin}$ at \SI{22}{\degreeCelsius};
+calorimeter of negligible heat capacity.
+\Required the final temperature $\theta$.
+\Formula $Q_{\text{lost by copper}}=Q_{\text{gained by water}}$:
+$m_c c_c(95-\theta)=m_w c_w(\theta-22)$.
+\Working
 \begin{align*}
   0.5 \times 390 \times (95-\theta) &= 0.3 \times 4200 \times (\theta-22)\\
   195(95-\theta) &= 1260(\theta-22)\\
@@ -1097,8 +1310,20 @@ This lies between \SI{20}{} and \SI{70}{\degreeCelsius}, as expected.
   \theta &\approx \SI{31.8}{\degreeCelsius}.
 \end{align*}
 This lies between \SI{22}{} and \SI{95}{\degreeCelsius}, as expected.
+\Answer{$\theta \approx \SI{31.8}{\degreeCelsius}$}
 
-\textbf{Q15.} Heat lost by iron $=$ heat gained by (cup $+$ water):
+\textbf{Q15.}
+\Given aluminium cup $m_{\text{cup}}=\SI{0.15}{\kilogram}$,
+$c_{\text{Al}}=900$; water $m_w=\SI{0.25}{\kilogram}$, $c_w=4200$
+(both all at \SI{18}{\degreeCelsius}); iron block
+$m_{\text{Fe}}=\SI{0.2}{\kilogram}$, $c_{\text{Fe}}=480$ at
+\SI{150}{\degreeCelsius}; no heat lost. ($c$ in
+\si{\joule\per\kilogram\per\kelvin}.)
+\Required the common temperature $\theta$.
+\Formula $Q_{\text{lost by iron}}=Q_{\text{gained by cup}}+Q_{\text{gained by water}}$:
+$m_{\text{Fe}}c_{\text{Fe}}(150-\theta)
+=(m_{\text{cup}}c_{\text{Al}}+m_w c_w)(\theta-18)$.
+\Working
 \begin{align*}
   0.2 \times 480 \times (150-\theta)
     &= \big(0.15\times900 + 0.25\times4200\big)(\theta-18)\\
@@ -1109,66 +1334,126 @@ This lies between \SI{22}{} and \SI{95}{\degreeCelsius}, as expected.
   \theta &\approx \SI{27.9}{\degreeCelsius}.
 \end{align*}
 This lies between \SI{18}{} and \SI{150}{\degreeCelsius}, as expected.
+\Answer{$\theta \approx \SI{27.9}{\degreeCelsius}$}
 
 \subsection*{Part D --- Latent heat}
 
 \textbf{Q16.}
+\Given $m=\SI{0.25}{\kilogram}$ ice at \SI{0}{\degreeCelsius};
+$L_f=\SI{3.34e5}{\joule\per\kilogram}$.
+\Required the heat needed to melt it $Q$.
+\Formula at the melting point $Q=mL_f$.
+\Working
 \begin{align*}
   Q &= mL_f = 0.25 \times 3.34\times10^{5}\\
     &= \SI{83500}{\joule} = \SI{83.5}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{83.5}{\kilo\joule}$}
 
-\textbf{Q17.} Melt the ice, then warm the melt-water:
+\textbf{Q17.}
+\Given $m=\SI{0.2}{\kilogram}$ ice at \SI{0}{\degreeCelsius} to water at
+\SI{30}{\degreeCelsius}; $L_f=\SI{3.34e5}{\joule\per\kilogram}$,
+$c_w=\SI{4200}{\joule\per\kilogram\per\kelvin}$.
+\Required the total heat $Q$.
+\Formula melt the ice ($Q_1=mL_f$), then warm the melt-water
+($Q_2=mc_w\Delta\theta$); $Q=Q_1+Q_2$.
+\Working
 \begin{align*}
   Q_1 &= mL_f = 0.2 \times 3.34\times10^{5} = \SI{66800}{\joule}\\
   Q_2 &= mc_{\text{w}}\,\Delta\theta = 0.2 \times 4200 \times 30 = \SI{25200}{\joule}\\
   Q &= Q_1 + Q_2 = \SI{92000}{\joule} = \SI{92}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{92}{\kilo\joule}$}
 
-\textbf{Q18.} Freezing removes the latent heat of fusion:
+\textbf{Q18.}
+\Given $m=\SI{0.5}{\kilogram}$ water already at \SI{0}{\degreeCelsius};
+$L_f=\SI{3.34e5}{\joule\per\kilogram}$.
+\Required the heat that must be removed $Q$.
+\Formula freezing removes the latent heat of fusion, $Q=mL_f$.
+\Working
 \begin{align*}
   Q &= mL_f = 0.5 \times 3.34\times10^{5}\\
     &= \SI{167000}{\joule} = \SI{167}{\kilo\joule} \text{ removed.}
 \end{align*}
+\Answer{$Q = \SI{167}{\kilo\joule}$ removed}
 
-\textbf{Q19.} Energy supplied melts the ice ($Q=mL_f$):
+\textbf{Q19.}
+\Given power $P=\SI{500}{\watt}$; time $t=\SI{2}{\minute}=\SI{120}{\second}$;
+$L_f=\SI{3.34e5}{\joule\per\kilogram}$; no losses.
+\Required the mass of ice melted $m$.
+\Formula heat supplied $Q=Pt$; this melts the ice, $Q=mL_f$, so
+$m=\dfrac{Q}{L_f}$.
+\Working
 \begin{align*}
   Q &= Pt = 500 \times (2\times60) = \SI{60000}{\joule}\\
   m &= \frac{Q}{L_f} = \frac{60000}{3.34\times10^{5}}\\
     &\approx \SI{0.180}{\kilogram} = \SI{180}{\gram}.
 \end{align*}
+\Answer{$m \approx \SI{180}{\gram}$}
 
-\textbf{Q20.} Warm the water to \SI{100}{\degreeCelsius}, then boil it:
+\textbf{Q20.}
+\Given $m=\SI{0.3}{\kilogram}$ water at \SI{50}{\degreeCelsius} to steam
+at \SI{100}{\degreeCelsius}; $c_w=\SI{4200}{\joule\per\kilogram\per\kelvin}$,
+$L_v=\SI{2.26e6}{\joule\per\kilogram}$.
+\Required the total heat $Q$.
+\Formula warm the water ($Q_1=mc_w\Delta\theta$), then boil it
+($Q_2=mL_v$); $Q=Q_1+Q_2$.
+\Working
 \begin{align*}
   Q_1 &= mc_{\text{w}}\,\Delta\theta = 0.3 \times 4200 \times 50 = \SI{63000}{\joule}\\
   Q_2 &= mL_v = 0.3 \times 2.26\times10^{6} = \SI{678000}{\joule}\\
   Q &= Q_1 + Q_2 = \SI{741000}{\joule} = \SI{741}{\kilo\joule}.
 \end{align*}
+\Answer{$Q = \SI{741}{\kilo\joule}$}
 
-\textbf{Q21.} Heat that must be removed to freeze the water:
+\textbf{Q21.}
+\Given $m=\SI{0.6}{\kilogram}$ water at \SI{0}{\degreeCelsius} frozen to
+ice at \SI{0}{\degreeCelsius}; time $t=\SI{4}{\minute}=\SI{240}{\second}$;
+$L_f=\SI{3.34e5}{\joule\per\kilogram}$.
+\Required the average rate of heat removal (\si{\watt}).
+\Formula heat removed $Q=mL_f$; rate $=\dfrac{Q}{t}$.
+\Working
 \begin{align*}
   Q &= mL_f = 0.6 \times 3.34\times10^{5} = \SI{200400}{\joule}\\
   t &= 4 \times 60 = \SI{240}{\second}\\
   \text{rate} &= \frac{Q}{t} = \frac{200400}{240} \approx \SI{835}{\watt}.
 \end{align*}
+\Answer{rate $\approx \SI{835}{\watt}$}
 
 \subsection*{Part E --- Graph reading}
 
-\textbf{Q22.} (a) The flat parts mark the changes of state, so the
+\textbf{Q22.}
+\Given $m=\SI{0.5}{\kilogram}$ pure solid; segment AB warms it from
+\SI{0}{} to \SI{50}{\degreeCelsius} absorbing $Q_{AB}=\SI{21000}{\joule}$;
+plateau BC at \SI{50}{\degreeCelsius}; plateau DE at
+\SI{120}{\degreeCelsius} absorbing $Q_{DE}=\SI{565000}{\joule}$.
+\Required (a) the melting and boiling points; (b) the specific heat
+capacity $c$ of the solid; (c) the specific latent heat of
+vapourisation $L_v$.
+
+(a) The flat parts mark the changes of state, so the
 \textbf{melting point} is \SI{50}{\degreeCelsius} (plateau BC) and the
 \textbf{boiling point} is \SI{120}{\degreeCelsius} (plateau DE).
+\Answer{melting point \SI{50}{\degreeCelsius}, boiling point
+\SI{120}{\degreeCelsius}}
 
-(b) Segment AB warms the solid from \SI{0}{} to \SI{50}{\degreeCelsius}
-using $Q=mc\Delta\theta$:
+(b) \Formula segment AB warms the solid, so
+$Q_{AB}=mc\,\Delta\theta \Rightarrow c = \dfrac{Q_{AB}}{m\,\Delta\theta}$
+with $\Delta\theta = 50-0 = \SI{50}{\kelvin}$.
+\Working
 \begin{align*}
   c &= \frac{Q}{m\,\Delta\theta} = \frac{21000}{0.5 \times 50}\\
     &= \frac{21000}{25} = \SI{840}{\joule\per\kilogram\per\kelvin}.
 \end{align*}
+\Answer{$c = \SI{840}{\joule\per\kilogram\per\kelvin}$}
 
-(c) Plateau DE is the boiling (vapourisation) stage, using $Q=mL_v$:
+(c) \Formula plateau DE is the boiling (vapourisation) stage, so
+$Q_{DE}=mL_v \Rightarrow L_v = \dfrac{Q_{DE}}{m}$.
+\Working
 \begin{align*}
   L_v &= \frac{Q}{m} = \frac{565000}{0.5}\\
       &= \SI{1.13e6}{\joule\per\kilogram}.
 \end{align*}
+\Answer{$L_v = \SI{1.13e6}{\joule\per\kilogram}$}
 
 \end{document}
